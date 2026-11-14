@@ -1,0 +1,35 @@
+import { transactionInputSchema } from "@/services/domain/transactionService";
+import { budgetService } from "@/services/domain/budgetService";
+describe("domain validation and budget rules", () => {
+  it("accepts valid transaction input", () =>
+    expect(
+      transactionInputSchema.safeParse({
+        type: "expense",
+        amountMinor: 2500,
+        categoryId: 2,
+        date: "2026-11-14",
+        note: "lunch",
+      }).success,
+    ).toBe(true));
+  it.each([
+    { type: "transfer", amountMinor: 50, categoryId: 1, date: "2026-11-14" },
+    { type: "income", amountMinor: 0, categoryId: 1, date: "2026-11-14" },
+    { type: "expense", amountMinor: 50, categoryId: 1, date: "bad" },
+  ])("rejects invalid transaction input", (input) =>
+    expect(transactionInputSchema.safeParse(input).success).toBe(false),
+  );
+  it("detects threshold and budget limit crossings", () => {
+    expect(budgetService.crossedThresholds(79, 80, 80)).toEqual({
+      threshold: true,
+      limit: false,
+    });
+    expect(budgetService.crossedThresholds(99, 101, 80)).toEqual({
+      threshold: false,
+      limit: true,
+    });
+    expect(budgetService.crossedThresholds(50, 79, 80)).toEqual({
+      threshold: false,
+      limit: false,
+    });
+  });
+});
