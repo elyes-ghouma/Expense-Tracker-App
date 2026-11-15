@@ -9,6 +9,7 @@ import { categoryService } from "@/services/domain/categoryService";
 import { budgetService } from "@/services/domain/budgetService";
 import { analyticsService } from "@/services/domain/analyticsService";
 import { TestDb } from "./sqliteAdapter";
+import { toDayKey } from "@/utils/dates";
 
 describe("domain services and repository operations", () => {
   let db: TestDb;
@@ -43,7 +44,7 @@ describe("domain services and repository operations", () => {
     });
     expect(updated.amountMinor).toBe(3200);
     const duplicate = await transactionService.duplicate(db, created.id);
-    expect(duplicate.date).toBe("2026-11-14");
+    expect(duplicate.date).toBe(toDayKey(new Date()));
     const removed = await transactionService.remove(db, created.id);
     await transactionService.restore(db, removed);
     expect(await transactionRepo.getById(db, created.id)).toMatchObject({
@@ -135,6 +136,53 @@ describe("domain services and repository operations", () => {
         alertThresholdPct: 80,
       }),
     ).rejects.toThrow();
+  });
+
+  it("persists editable category symbols and colors", async () => {
+    const category = (await categoryRepo.list(db, { type: "expense" })).find(
+      (item) => item.name === "Groceries",
+    )!;
+    await categoryService.update(db, category.id, {
+      icon: "cart",
+      color: "#F79009",
+    });
+    expect(await categoryRepo.get(db, category.id)).toMatchObject({
+      icon: "cart",
+      color: "#F79009",
+    });
+  });
+
+  it("stores cash alert thresholds in minor units and validates them", async () => {
+    const category = (await categoryRepo.list(db, { type: "expense" }))[0];
+    await budgetService.setBudget(db, {
+      categoryId: category.id,
+      month: "2026-11",
+      amountMinor: 100000,
+      alertThresholdPct: 80,
+      alertThresholdMode: "cash",
+      alertThresholdValue: 80000,
+    });
+    expect(await budgetRepo.listForMonth(db, "2026-11")).toMatchObject([
+      {
+        alertThresholdMode: "cash",
+        alertThresholdValue: 80000,
+        alertThresholdPct: 80,
+      },
+    ]);
+    expect(budgetService.alertThresholdMinor({
+      amountMinor: 100000,
+      alertThresholdPct: 80,
+      alertThresholdMode: "cash",
+      alertThresholdValue: 80000,
+    })).toBe(80000);
+    await expect(budgetService.setBudget(db, {
+      categoryId: category.id,
+      month: "2026-12",
+      amountMinor: 100000,
+      alertThresholdPct: 100,
+      alertThresholdMode: "cash",
+      alertThresholdValue: 100001,
+    })).rejects.toThrow("Cash alert cannot exceed the monthly limit");
   });
 
   it("calculates dashboard, analytics, totals and balance from SQLite", async () => {

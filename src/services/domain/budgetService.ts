@@ -10,21 +10,35 @@ export const budgetService = {
       month: string;
       amountMinor: number;
       alertThresholdPct: number;
+      alertThresholdMode?: "percent" | "cash";
+      alertThresholdValue?: number;
     },
   ) => {
     if (!Number.isInteger(b.amountMinor) || b.amountMinor <= 0)
       throw new Error("Budget must be greater than zero");
-    if (
-      !Number.isInteger(b.alertThresholdPct) ||
-      b.alertThresholdPct < 1 ||
-      b.alertThresholdPct > 100
-    )
-      throw new Error("Threshold must be between 1 and 100");
-    return budgetRepo.upsert(db, b);
+    const mode = b.alertThresholdMode ?? "percent";
+    const value = b.alertThresholdValue ?? b.alertThresholdPct;
+    if (!Number.isInteger(value) || value <= 0)
+      throw new Error("Alert threshold must be greater than zero");
+    if (mode === "percent" && value > 100)
+      throw new Error("Percentage threshold must be between 1 and 100");
+    if (mode === "cash" && value > b.amountMinor)
+      throw new Error("Cash alert cannot exceed the monthly limit");
+    const alertThresholdPct = mode === "percent"
+      ? value
+      : Math.max(1, Math.round((value / b.amountMinor) * 100));
+    return budgetRepo.upsert(db, { ...b, alertThresholdPct, alertThresholdMode: mode, alertThresholdValue: value });
   },
   removeBudget: budgetRepo.remove,
-  crossedThresholds: (before: number, after: number, threshold: number) => ({
-    threshold: before < threshold && after >= threshold,
-    limit: before < 100 && after >= 100,
-  }),
+  alertThresholdMinor: (budget: { amountMinor: number; alertThresholdMode?: "percent" | "cash"; alertThresholdValue?: number; alertThresholdPct: number }) =>
+    budget.alertThresholdMode === "cash"
+      ? budget.alertThresholdValue ?? 0
+      : Math.round((budget.amountMinor * (budget.alertThresholdValue ?? budget.alertThresholdPct)) / 100),
+  crossedThresholds: (beforeSpentMinor: number, afterSpentMinor: number, budget: { amountMinor: number; alertThresholdMode?: "percent" | "cash"; alertThresholdValue?: number; alertThresholdPct: number }) => {
+    const thresholdMinor = budgetService.alertThresholdMinor(budget);
+    return {
+      threshold: beforeSpentMinor < thresholdMinor && afterSpentMinor >= thresholdMinor,
+      limit: beforeSpentMinor < budget.amountMinor && afterSpentMinor >= budget.amountMinor,
+    };
+  },
 };

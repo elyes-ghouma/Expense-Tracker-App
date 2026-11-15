@@ -5,6 +5,8 @@ type Row = {
   month: string;
   amount_minor: number;
   alert_threshold_pct: number;
+  alert_threshold_mode: "percent" | "cash";
+  alert_threshold_value: number;
   category_name?: string;
   category_icon?: string;
   category_color?: string;
@@ -22,6 +24,8 @@ export const budgetRepo = {
       month: r.month,
       amountMinor: r.amount_minor,
       alertThresholdPct: r.alert_threshold_pct,
+      alertThresholdMode: r.alert_threshold_mode ?? "percent",
+      alertThresholdValue: r.alert_threshold_value ?? r.alert_threshold_pct,
       categoryName: r.category_name,
       categoryIcon: r.category_icon,
       categoryColor: r.category_color,
@@ -35,18 +39,20 @@ export const budgetRepo = {
       month: string;
       amountMinor: number;
       alertThresholdPct: number;
+      alertThresholdMode?: "percent" | "cash";
+      alertThresholdValue?: number;
     },
   ) {
     if (b.categoryId === null) {
       await db.runAsync(
-        "INSERT INTO budgets(category_id,month,amount_minor,alert_threshold_pct) VALUES(NULL,?,?,?) ON CONFLICT(month) WHERE category_id IS NULL DO UPDATE SET amount_minor=excluded.amount_minor,alert_threshold_pct=excluded.alert_threshold_pct,updated_at=?",
-        [b.month, b.amountMinor, b.alertThresholdPct, Date.now()],
+        "INSERT INTO budgets(category_id,month,amount_minor,alert_threshold_pct,alert_threshold_mode,alert_threshold_value) VALUES(NULL,?,?,?,?,?) ON CONFLICT(month) WHERE category_id IS NULL DO UPDATE SET amount_minor=excluded.amount_minor,alert_threshold_pct=excluded.alert_threshold_pct,alert_threshold_mode=excluded.alert_threshold_mode,alert_threshold_value=excluded.alert_threshold_value,updated_at=?",
+        [b.month, b.amountMinor, b.alertThresholdPct, b.alertThresholdMode ?? "percent", b.alertThresholdValue ?? b.alertThresholdPct, Date.now()],
       );
       return;
     }
     await db.runAsync(
-      "INSERT INTO budgets(category_id,month,amount_minor,alert_threshold_pct) VALUES(?,?,?,?) ON CONFLICT(category_id,month) DO UPDATE SET amount_minor=excluded.amount_minor,alert_threshold_pct=excluded.alert_threshold_pct,updated_at=?",
-      [b.categoryId, b.month, b.amountMinor, b.alertThresholdPct, Date.now()],
+      "INSERT INTO budgets(category_id,month,amount_minor,alert_threshold_pct,alert_threshold_mode,alert_threshold_value) VALUES(?,?,?,?,?,?) ON CONFLICT(category_id,month) DO UPDATE SET amount_minor=excluded.amount_minor,alert_threshold_pct=excluded.alert_threshold_pct,alert_threshold_mode=excluded.alert_threshold_mode,alert_threshold_value=excluded.alert_threshold_value,updated_at=?",
+      [b.categoryId, b.month, b.amountMinor, b.alertThresholdPct, b.alertThresholdMode ?? "percent", b.alertThresholdValue ?? b.alertThresholdPct, Date.now()],
     );
   },
   async remove(db: Db, id: number) {
@@ -55,7 +61,7 @@ export const budgetRepo = {
   async copyMonth(db: Db, from: string, to: string) {
     await db.withTransactionAsync(async () => {
       await db.runAsync(
-        "INSERT OR IGNORE INTO budgets(category_id,month,amount_minor,alert_threshold_pct) SELECT category_id,?,amount_minor,alert_threshold_pct FROM budgets WHERE month=?",
+        "INSERT OR IGNORE INTO budgets(category_id,month,amount_minor,alert_threshold_pct,alert_threshold_mode,alert_threshold_value) SELECT category_id,?,amount_minor,alert_threshold_pct,alert_threshold_mode,alert_threshold_value FROM budgets WHERE month=?",
         [to, from],
       );
     });

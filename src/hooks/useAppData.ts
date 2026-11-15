@@ -129,6 +129,8 @@ export function useSetBudget() {
       month: string;
       amountMinor: number;
       alertThresholdPct: number;
+      alertThresholdMode?: "percent" | "cash";
+      alertThresholdValue?: number;
     }) => budgetService.setBudget(db, x),
     onSuccess: () => qc.invalidateQueries(),
   });
@@ -160,6 +162,17 @@ export function useCategoryCreate() {
       icon: string;
       color: string;
     }) => categoryService.create(db, x),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+  });
+}
+export function useCategoryUpdate() {
+  const db = useDb();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (x: {
+      id: number;
+      input: Partial<{ name: string; icon: string; color: string }>;
+    }) => categoryService.update(db, x.id, x.input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
 }

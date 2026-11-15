@@ -3,7 +3,7 @@
     "name": "Pocketwise",
     "slug": "pocketwise-expense-tracker",
     "scheme": "pocketwise",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
       "expo-notifications"
     ],
     "experiments": { "typedRoutes": true },
-    "ios": { "supportsTablet": true },
-    "android": { "adaptiveIcon": { "backgroundColor": "#5B5FEF" } }
+    "ios": { "supportsTablet": true, "buildNumber": "2" },
+    "android": { "adaptiveIcon": { "backgroundColor": "#5B5FEF" }, "versionCode": 2 }
   }
 }

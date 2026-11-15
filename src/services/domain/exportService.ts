@@ -80,7 +80,7 @@ export const exportService = {
       const version = await source.getFirstAsync<{ user_version: number }>(
         "PRAGMA user_version",
       );
-      if (version?.user_version !== 1)
+      if (version?.user_version !== 1 && version?.user_version !== 2)
         throw new Error("This backup version is not supported");
       const tables = await source.getAllAsync<{ name: string }>(
         "SELECT name FROM sqlite_master WHERE type='table'",
@@ -135,13 +135,15 @@ export const exportService = {
           );
         for (const row of budgets)
           await db.runAsync(
-            "INSERT INTO budgets(id,category_id,month,amount_minor,alert_threshold_pct,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+            "INSERT INTO budgets(id,category_id,month,amount_minor,alert_threshold_pct,alert_threshold_mode,alert_threshold_value,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
             [
               row.id,
               row.category_id,
               row.month,
               row.amount_minor,
               row.alert_threshold_pct,
+              row.alert_threshold_mode ?? "percent",
+              row.alert_threshold_value ?? row.alert_threshold_pct,
               row.created_at,
               row.updated_at,
             ],

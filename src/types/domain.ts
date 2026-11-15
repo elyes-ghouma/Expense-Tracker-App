@@ -32,6 +32,8 @@ export interface Budget {
   month: MonthKey;
   amountMinor: number;
   alertThresholdPct: number;
+  alertThresholdMode: "percent" | "cash";
+  alertThresholdValue: number;
 }
 export interface BudgetProgress extends Budget {
   categoryName?: string;

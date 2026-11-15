@@ -19,17 +19,38 @@ describe("domain validation and budget rules", () => {
     expect(transactionInputSchema.safeParse(input).success).toBe(false),
   );
   it("detects threshold and budget limit crossings", () => {
-    expect(budgetService.crossedThresholds(79, 80, 80)).toEqual({
+    expect(budgetService.crossedThresholds(7900, 8000, {
+      amountMinor: 10000,
+      alertThresholdPct: 80,
+      alertThresholdMode: "percent",
+      alertThresholdValue: 80,
+    })).toEqual({
       threshold: true,
       limit: false,
     });
-    expect(budgetService.crossedThresholds(99, 101, 80)).toEqual({
+    expect(budgetService.crossedThresholds(9900, 10100, {
+      amountMinor: 10000,
+      alertThresholdPct: 80,
+      alertThresholdMode: "percent",
+      alertThresholdValue: 80,
+    })).toEqual({
       threshold: false,
       limit: true,
     });
-    expect(budgetService.crossedThresholds(50, 79, 80)).toEqual({
+    expect(budgetService.crossedThresholds(5000, 7900, {
+      amountMinor: 10000,
+      alertThresholdPct: 80,
+      alertThresholdMode: "percent",
+      alertThresholdValue: 80,
+    })).toEqual({
       threshold: false,
       limit: false,
     });
+    expect(budgetService.crossedThresholds(7999, 8000, {
+      amountMinor: 10000,
+      alertThresholdPct: 80,
+      alertThresholdMode: "cash",
+      alertThresholdValue: 8000,
+    })).toEqual({ threshold: true, limit: false });
   });
 });

@@ -182,22 +182,6 @@ export default function TransactionScreen() {
           </Pressable>
         ))}
       </View>
-      <View style={{ alignItems: "center", paddingVertical: 8 }}>
-        <AppText
-          style={{
-            fontSize: 44,
-            lineHeight: 56,
-            fontFamily: "Inter_700Bold",
-            fontVariant: ["tabular-nums"],
-            color: type === "expense" ? c.expense : c.income,
-          }}
-        >
-          {amount || "0"}{" "}
-          <AppText style={{ fontSize: 20, color: c.textSecondary }}>
-            {currency}
-          </AppText>
-        </AppText>
-      </View>
       <AppText style={{ fontFamily: "Inter_600SemiBold" }}>Frequent</AppText>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {frequent.data?.map((cat) => (
@@ -339,6 +323,23 @@ export default function TransactionScreen() {
           borderRadius: 14,
         }}
       />
+      <View style={{ alignItems: "center", paddingVertical: 4 }}>
+        <AppText
+          accessibilityLabel={`Amount ${amount || "0"} ${currency}`}
+          style={{
+            fontSize: 44,
+            lineHeight: 56,
+            fontFamily: "Inter_700Bold",
+            fontVariant: ["tabular-nums"],
+            color: type === "expense" ? c.expense : c.income,
+          }}
+        >
+          {amount || "0"}{" "}
+          <AppText style={{ fontSize: 20, color: c.textSecondary }}>
+            {currency}
+          </AppText>
+        </AppText>
+      </View>
       <Card style={{ gap: 8 }}>
         <View
           style={{
@@ -367,14 +368,20 @@ export default function TransactionScreen() {
               accessibilityRole="button"
               accessibilityLabel={k === "del" ? "Delete digit" : k}
               onPress={() => add(k)}
-              style={{
+              onPressIn={() => {
+                if (settings.data?.haptics_enabled !== "0")
+                  void Haptics.selectionAsync();
+              }}
+              style={({ pressed }) => [{
                 width: "28%",
                 height: 42,
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: 12,
-                backgroundColor: c.surfaceMuted,
-              }}
+                backgroundColor: pressed ? c.primarySoft : c.surfaceMuted,
+                opacity: pressed ? 0.82 : 1,
+                transform: [{ scale: pressed ? 0.94 : 1 }],
+              }]}
             >
               <AppText style={{ fontSize: 20 }}>
                 {k === "del" ? "⌫" : k}

@@ -12,7 +12,7 @@ import {
   useSetBudget,
   useSettings,
 } from "@/hooks/useAppData";
-import { parseToMinor } from "@/utils/money";
+import { formatMoney, parseToMinor } from "@/utils/money";
 import { addMonths } from "@/utils/dates";
 import type { Db } from "@/types/domain";
 import { budgetRepo } from "@/services/database/repositories/budgetRepo";
@@ -33,6 +33,7 @@ export default function BudgetEditor() {
   const db = useSQLiteContext() as unknown as Db;
   const queryClient = useQueryClient();
   const decimals = Number(settings.data?.currency_decimals ?? 2);
+  const currency = settings.data?.currency_code ?? "USD";
   const [categoryId, setCategoryId] = useState<number | null>(
     params.categoryId === "overall"
       ? null
@@ -41,7 +42,8 @@ export default function BudgetEditor() {
         : null,
   );
   const [amount, setAmount] = useState("");
-  const [threshold, setThreshold] = useState(80);
+  const [alertMode, setAlertMode] = useState<"percent" | "cash">("percent");
+  const [alertValue, setAlertValue] = useState("80");
   const save = useSetBudget();
   const remove = useRemoveBudget();
   const current = budgets.data?.find(
@@ -52,9 +54,32 @@ export default function BudgetEditor() {
     if (current) {
       setAmount(String(current.amountMinor / 10 ** decimals));
       setCategoryId(current.categoryId);
-      setThreshold(current.alertThresholdPct);
+      const mode = current.alertThresholdMode ?? "percent";
+      setAlertMode(mode);
+      setAlertValue(
+        mode === "cash"
+          ? String((current.alertThresholdValue ?? 0) / 10 ** decimals)
+          : String(current.alertThresholdValue ?? current.alertThresholdPct),
+      );
     }
   }, [current, decimals]);
+
+  let amountMinor: number | null = null;
+  let alertThresholdMinor: number | null = null;
+  let numericAlertValue: number | null = null;
+  try {
+    amountMinor = parseToMinor(amount, decimals);
+    numericAlertValue = alertMode === "percent"
+      ? Number(alertValue)
+      : parseToMinor(alertValue, decimals);
+    if (numericAlertValue > 0 && Number.isFinite(numericAlertValue)) {
+      alertThresholdMinor = alertMode === "percent"
+        ? Math.round((amountMinor * numericAlertValue) / 100)
+        : numericAlertValue;
+    }
+  } catch {
+    // Keep the preview hidden until both fields contain valid input.
+  }
 
   return (
     <Screen>
@@ -130,43 +155,113 @@ export default function BudgetEditor() {
           borderRadius: 14,
         }}
       />
-      <AppText style={{ fontFamily: "Inter_600SemiBold" }}>
-        Alert at {threshold}%
-      </AppText>
-      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        {[50, 60, 70, 80, 90, 100].map((value) => (
+      <AppText style={{ fontFamily: "Inter_600SemiBold" }}>Alert threshold</AppText>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {(["percent", "cash"] as const).map((mode) => (
           <Pressable
-            key={value}
+            key={mode}
             accessibilityRole="button"
-            accessibilityLabel={`Alert at ${value}%`}
-            onPress={() => setThreshold(value)}
+            accessibilityLabel={mode === "percent" ? "Percent (%)" : "Cash Amount"}
+            accessibilityState={{ selected: alertMode === mode }}
+            onPress={() => {
+              if (alertMode === mode) return;
+              if (amountMinor && amountMinor > 0 && numericAlertValue) {
+                if (mode === "cash") {
+                  const nextMinor = Math.round((amountMinor * Number(alertValue)) / 100);
+                  setAlertValue(String(nextMinor / 10 ** decimals));
+                } else {
+                  const nextPercent = Math.round((parseToMinor(alertValue, decimals) / amountMinor) * 100);
+                  setAlertValue(String(Math.max(1, Math.min(100, nextPercent))));
+                }
+              }
+              setAlertMode(mode);
+            }}
             style={{
-              padding: 9,
+              flex: 1,
+              alignItems: "center",
+              padding: 11,
               borderRadius: 18,
-              backgroundColor: threshold === value ? c.primary : c.surface,
+              backgroundColor: alertMode === mode ? c.primary : c.surface,
             }}
           >
             <AppText
               style={{
-                color: threshold === value ? c.onPrimary : c.textPrimary,
+                color: alertMode === mode ? c.onPrimary : c.textPrimary,
               }}
             >
-              {value}
+              {mode === "percent" ? "Percent (%)" : "Cash Amount"}
             </AppText>
           </Pressable>
         ))}
       </View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <TextInput
+          value={alertValue}
+          onChangeText={setAlertValue}
+          keyboardType="decimal-pad"
+          selectTextOnFocus
+          placeholder={alertMode === "percent" ? "80" : "Alert amount"}
+          accessibilityLabel="Alert threshold value"
+          placeholderTextColor={c.textTertiary}
+          style={{
+            flex: 1,
+            fontSize: 20,
+            padding: 14,
+            color: c.textPrimary,
+            backgroundColor: c.surface,
+            borderRadius: 14,
+          }}
+        />
+        <AppText style={{ color: c.textSecondary }}>
+          {alertMode === "percent" ? "%" : currency}
+        </AppText>
+      </View>
+      {alertMode === "percent" && (
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          {[50, 60, 70, 80, 90, 100].map((value) => (
+            <Pressable
+              key={value}
+              accessibilityRole="button"
+              accessibilityLabel={`Set alert to ${value}%`}
+              onPress={() => setAlertValue(String(value))}
+              style={{
+                padding: 9,
+                borderRadius: 18,
+                backgroundColor: alertValue === String(value) ? c.primary : c.surface,
+              }}
+            >
+              <AppText style={{ color: alertValue === String(value) ? c.onPrimary : c.textPrimary }}>
+                {value}
+              </AppText>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      {alertThresholdMinor !== null && amountMinor !== null && (
+        <AppText accessibilityLabel={`Alert preview ${formatMoney(alertThresholdMinor, { currency, locale: "en", decimals })}`} style={{ color: c.textSecondary }}>
+          {alertMode === "percent" ? `= ${formatMoney(alertThresholdMinor, { currency, locale: "en", decimals })} at ${alertValue}%` : `Alert when spending reaches ${formatMoney(alertThresholdMinor, { currency, locale: "en", decimals })}`}
+        </AppText>
+      )}
       <ActionButton
         title="Save budget"
         loading={save.isPending}
         onPress={async () => {
           try {
             const amountMinor = parseToMinor(amount, decimals);
+            const thresholdValue = alertMode === "percent"
+              ? Number(alertValue)
+              : parseToMinor(alertValue, decimals);
+            if (!Number.isInteger(thresholdValue) || thresholdValue < 1 || (alertMode === "percent" && thresholdValue > 100))
+              throw new Error(alertMode === "percent" ? "Enter a whole percentage from 1 to 100" : "Enter a valid cash amount");
             await save.mutateAsync({
               categoryId,
               month,
               amountMinor,
-              alertThresholdPct: threshold,
+              alertThresholdPct: alertMode === "percent"
+                ? thresholdValue
+                : Math.max(1, Math.round((thresholdValue / amountMinor) * 100)),
+              alertThresholdMode: alertMode,
+              alertThresholdValue: thresholdValue,
             });
             const spent = current?.spentMinor ?? 0;
             if (spent >= amountMinor)
@@ -174,10 +269,12 @@ export default function BudgetEditor() {
                 "Budget exceeded",
                 "Spending for this budget is already over the limit.",
               );
-            else if (spent >= (amountMinor * threshold) / 100)
+            else if (spent >= (alertThresholdMinor ?? 0))
               Alert.alert(
                 "Budget alert",
-                `${threshold}% of this budget has been used.`,
+                alertMode === "percent"
+                  ? `${alertValue}% of this budget has been used.`
+                  : `${formatMoney(alertThresholdMinor ?? 0, { currency, locale: "en", decimals })} alert amount reached.`,
               );
             router.back();
           } catch (error) {

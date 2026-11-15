@@ -22,7 +22,7 @@ jest.mock("@/hooks/useAppData", () => ({
     data: {
       currency_code: "USD",
       currency_decimals: "2",
-      haptics_enabled: "0",
+      haptics_enabled: "1",
     },
   }),
   useCategories: (type: "expense" | "income") => ({
@@ -86,4 +86,12 @@ describe("transaction entry flow", () => {
       ),
     );
   }, 15000);
+  it("places the amount beside the keypad and gives keypad presses feedback", () => {
+    const Haptics = jest.requireMock("expo-haptics") as { selectionAsync: jest.Mock };
+    const view = render(<TransactionScreen />);
+    fireEvent(view.getByRole("button", { name: "1" }), "pressIn");
+    fireEvent.press(view.getByRole("button", { name: "1" }));
+    expect(view.getByLabelText("Amount 1 USD")).toBeTruthy();
+    expect(Haptics.selectionAsync).toHaveBeenCalled();
+  });
 });
