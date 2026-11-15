@@ -1,0 +1,107 @@
+name: CI
+
+# Run on every push to main and on every pull request that targets main.
+# workflow_dispatch adds a "Run workflow" button in the Actions tab.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same branch/PR cancels the run that is still in progress.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# The workflow only needs to read the repository.
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24"
+  # Keeps Expo CLI quiet and non-interactive on CI.
+  EXPO_NO_TELEMETRY: "1"
+  CI: "true"
+
+jobs:
+  quality:
+    name: Typecheck, lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js (with npm cache)
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Fails if any package version drifts from what Expo SDK 54 expects.
+      - name: Check Expo dependency versions
+        run: npx expo install --check
+
+      # Non-blocking for now: expo-doctor reports a missing expo-linking peer
+      # dependency. After `npx expo install expo-linking`, remove
+      # continue-on-error to make this a required check.
+      - name: Expo Doctor
+        run: npx expo-doctor
+        continue-on-error: true
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # Non-blocking for now: 13 files are not Prettier-formatted yet. After
+      # running `npx prettier --write .` once, remove continue-on-error.
+      - name: Format check (Prettier)
+        run: npx prettier --check "app/**/*.{ts,tsx}" "src/**/*.{ts,tsx}" "__tests__/**/*.{ts,tsx}"
+        continue-on-error: true
+
+      # Runs Jest with the coverage thresholds from jest.config.js.
+      - name: Test with coverage
+        run: npm test -- --ci --coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  bundle:
+    name: Export ${{ matrix.platform }} bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Only bundle when the quick checks pass.
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [android, ios]
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js (with npm cache)
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Metro bundles the whole app, so broken imports, bad routes and
+      # app.json/plugin errors fail here. No native build or EAS account needed.
+      - name: Export JavaScript bundle
+        run: npx expo export --platform ${{ matrix.platform }} --output-dir dist
