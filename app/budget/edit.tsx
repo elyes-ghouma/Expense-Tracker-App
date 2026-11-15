@@ -4,7 +4,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useQueryClient } from "@tanstack/react-query";
 import { Screen, Row } from "@/components/screens";
-import { ActionButton, AppText, useColors } from "@/components/ui";
+import { ActionButton, AppText, SegmentedControl, useColors } from "@/components/ui";
+import * as Haptics from "expo-haptics";
 import {
   useBudgets,
   useCategories,
@@ -156,14 +157,8 @@ export default function BudgetEditor() {
         }}
       />
       <AppText style={{ fontFamily: "Inter_600SemiBold" }}>Alert threshold</AppText>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        {(["percent", "cash"] as const).map((mode) => (
-          <Pressable
-            key={mode}
-            accessibilityRole="button"
-            accessibilityLabel={mode === "percent" ? "Percent (%)" : "Cash Amount"}
-            accessibilityState={{ selected: alertMode === mode }}
-            onPress={() => {
+      <SegmentedControl value={alertMode} accessibilityLabel="Alert limit type" options={[{ value: "percent", label: "Percent (%)" }, { value: "cash", label: "Cash Amount" }]} onChange={(mode) => {
+              if (settings.data?.haptics_enabled !== "0") void Haptics.selectionAsync();
               if (alertMode === mode) return;
               if (amountMinor && amountMinor > 0 && numericAlertValue) {
                 if (mode === "cash") {
@@ -175,31 +170,12 @@ export default function BudgetEditor() {
                 }
               }
               setAlertMode(mode);
-            }}
-            style={{
-              flex: 1,
-              alignItems: "center",
-              padding: 11,
-              borderRadius: 18,
-              backgroundColor: alertMode === mode ? c.primary : c.surface,
-            }}
-          >
-            <AppText
-              style={{
-                color: alertMode === mode ? c.onPrimary : c.textPrimary,
-              }}
-            >
-              {mode === "percent" ? "Percent (%)" : "Cash Amount"}
-            </AppText>
-          </Pressable>
-        ))}
-      </View>
+            }} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <TextInput
           value={alertValue}
           onChangeText={setAlertValue}
           keyboardType="decimal-pad"
-          selectTextOnFocus
           placeholder={alertMode === "percent" ? "80" : "Alert amount"}
           accessibilityLabel="Alert threshold value"
           placeholderTextColor={c.textTertiary}

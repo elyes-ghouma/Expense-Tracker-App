@@ -4,12 +4,14 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-fns";
 import { Screen, Row } from "@/components/screens";
-import { AppText, Card, useColors } from "@/components/ui";
+import { AppText, Card, MoneyText, ProgressBar, SegmentedControl, CategoryBadge, useColors } from "@/components/ui";
 import { useDashboard, useSettings } from "@/hooks/useAppData";
 import { addMonths, monthKey } from "@/utils/dates";
 import { formatMoney } from "@/utils/money";
 import { useAppStore } from "@/store/appStore";
 import { SpendingDonut } from "@/components/SpendingDonut";
+import { LinearGradient } from "expo-linear-gradient";
+import { budgetService } from "@/services/domain/budgetService";
 export default function Dashboard() {
   const c = useColors();
   const router = useRouter();
@@ -46,10 +48,10 @@ export default function Dashboard() {
     >
       <Row>
         <View>
-          <AppText style={{ fontSize: 12, color: c.textSecondary }}>
-            OVERVIEW
+          <AppText variant="eyebrow" style={{ color: c.textSecondary }}>
+            Overview
           </AppText>
-          <AppText style={{ fontSize: 27, fontFamily: "Inter_700Bold" }}>
+          <AppText variant="titleLarge">
             Your money
           </AppText>
         </View>
@@ -80,7 +82,7 @@ export default function Dashboard() {
           </Pressable>
         </Row>
       </Row>
-      <Card style={{ backgroundColor: c.primary, borderWidth: 0, gap: 14 }}>
+      <LinearGradient colors={[c.gradientStart, c.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 22, borderRadius: 24, gap: 15 }}>
         <Row>
           <AppText style={{ color: "#E8E9FF" }}>Total balance</AppText>
           <Pressable
@@ -95,7 +97,7 @@ export default function Dashboard() {
             />
           </Pressable>
         </Row>
-        <AppText
+        <MoneyText
           adjustsFontSizeToFit
           numberOfLines={1}
           style={{ color: "#fff", fontSize: 38, fontFamily: "Inter_700Bold" }}
@@ -104,7 +106,7 @@ export default function Dashboard() {
             Number(s.data?.opening_balance_minor ?? 0) +
               (q.data?.balanceMinor ?? 0),
           )}
-        </AppText>
+        </MoneyText>
         <Row>
           <View>
             <AppText style={{ color: "#DDDFFF", fontSize: 12 }}>
@@ -123,7 +125,7 @@ export default function Dashboard() {
             </AppText>
           </View>
         </Row>
-      </Card>
+      </LinearGradient>
       <Row>
         <AppText style={{ fontSize: 19, fontFamily: "Inter_600SemiBold" }}>
           {breakdownType === "expense"
@@ -134,30 +136,7 @@ export default function Dashboard() {
           {money(breakdownTotal)}
         </AppText>
       </Row>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        {(["expense", "income"] as const).map((type) => (
-          <Pressable
-            key={type}
-            accessibilityRole="button"
-            onPress={() => setBreakdownType(type)}
-            style={{
-              paddingVertical: 8,
-              paddingHorizontal: 13,
-              borderRadius: 18,
-              backgroundColor:
-                breakdownType === type ? c.primarySoft : c.surface,
-            }}
-          >
-            <AppText
-              style={{
-                color: breakdownType === type ? c.primary : c.textSecondary,
-              }}
-            >
-              {type === "expense" ? "Expenses" : "Income"}
-            </AppText>
-          </Pressable>
-        ))}
-      </View>
+      <SegmentedControl value={breakdownType} onChange={setBreakdownType} options={[{ value: "expense", label: "Expenses" }, { value: "income", label: "Income" }]} accessibilityLabel="Category totals" />
       <Card style={{ gap: 13 }}>
         <Row style={{ gap: 10, justifyContent: "flex-start" }}>
           <SpendingDonut
@@ -216,45 +195,21 @@ export default function Dashboard() {
           <AppText style={{ color: c.primary }}>Set budget</AppText>
         </Pressable>
       </Row>
-      {q.data?.budgets
-        .filter((b) => b.categoryId === null)
-        .map((b) => (
-          <Card key={b.id} style={{ gap: 10 }}>
-            <Row>
-              <AppText>
-                Spent {money(b.spentMinor)} of {money(b.amountMinor)}
-              </AppText>
-              <AppText
-                style={{
-                  color: b.spentMinor > b.amountMinor ? c.expense : c.primary,
-                }}
-              >
-                {Math.min(
-                  100,
-                  Math.round((b.spentMinor / b.amountMinor) * 100),
-                )}
-                %
-              </AppText>
-            </Row>
-            <View
-              style={{
-                height: 9,
-                borderRadius: 8,
-                backgroundColor: c.surfaceMuted,
-              }}
-            >
-              <View
-                style={{
-                  height: 9,
-                  borderRadius: 8,
-                  width: `${Math.min(100, (b.spentMinor / b.amountMinor) * 100)}%`,
-                  backgroundColor:
-                    b.spentMinor > b.amountMinor ? c.expense : c.primary,
-                }}
-              />
-            </View>
-          </Card>
-        ))}
+      {q.data?.budgets.filter((b) => b.categoryId === null).map((b) => {
+        const alertMinor = budgetService.alertThresholdMinor(b);
+        const ratio = b.spentMinor / b.amountMinor;
+        const reached = b.spentMinor >= alertMinor;
+        const over = b.spentMinor >= b.amountMinor;
+        const statusColor = over ? c.expense : reached ? c.warning : c.primary;
+        return <Card key={b.id} style={{ gap: 12 }}>
+          <Row>
+            <View style={{ gap: 3 }}><AppText variant="titleSmall">Monthly limit</AppText><AppText variant="caption" style={{ color: c.textSecondary }}>{money(b.spentMinor)} of {money(b.amountMinor)}</AppText></View>
+            <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: over ? c.expenseSoft : reached ? c.warningSoft : c.primarySoft }}><AppText variant="captionStrong" style={{ color: statusColor }}>{over ? "Over limit" : reached ? "Alert reached" : `${Math.round(ratio * 100)}% used`}</AppText></View>
+          </Row>
+          <ProgressBar progress={ratio * 100} color={statusColor} />
+          <Row><AppText variant="caption" style={{ color: c.textSecondary }}>{money(Math.max(0, b.amountMinor - b.spentMinor))} remaining</AppText><AppText variant="footnote" style={{ color: reached ? statusColor : c.textTertiary }}>Alert at {money(alertMinor)}</AppText></Row>
+        </Card>;
+      })}
       <Row>
         <AppText style={{ fontSize: 19, fontFamily: "Inter_600SemiBold" }}>
           Recent transactions
@@ -271,22 +226,7 @@ export default function Dashboard() {
               onPress={() => router.push(`/transaction/${t.id}`)}
             >
               <Row style={{ gap: 10 }}>
-                <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 14,
-                    backgroundColor: `${t.categoryColor}22`,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Ionicons
-                    name={t.categoryIcon as never}
-                    size={20}
-                    color={t.categoryColor}
-                  />
-                </View>
+                <CategoryBadge icon={t.categoryIcon} color={t.categoryColor} />
                 <View style={{ flex: 1 }}>
                   <AppText style={{ fontFamily: "Inter_600SemiBold" }}>
                     {t.categoryName}
@@ -295,7 +235,7 @@ export default function Dashboard() {
                     {t.note || t.date}
                   </AppText>
                 </View>
-                <AppText
+                <MoneyText
                   style={{
                     fontFamily: "Inter_600SemiBold",
                     color: t.type === "income" ? c.income : c.textPrimary,
@@ -303,7 +243,7 @@ export default function Dashboard() {
                 >
                   {t.type === "income" ? "+" : "−"}
                   {money(t.amountMinor)}
-                </AppText>
+                </MoneyText>
               </Row>
             </Pressable>
           ))

@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSQLiteContext, type SQLiteDatabase } from "expo-sqlite";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen, Row } from "@/components/screens";
-import { AppText, Card, useColors } from "@/components/ui";
+import { AppText, Card, SegmentedControl, useColors } from "@/components/ui";
 import { useSetSetting, useSettings } from "@/hooks/useAppData";
 import { useAppStore } from "@/store/appStore";
 import { exportService } from "@/services/domain/exportService";
@@ -33,23 +33,6 @@ export default function Settings() {
       );
   }, [settings.data, decimals]);
 
-  const chooseCurrency = (currency: string) =>
-    Alert.alert(
-      "Change currency?",
-      `Amounts will be displayed in ${currency}. Existing values will not be converted.`,
-      [
-        { text: "Cancel" },
-        {
-          text: "Change",
-          onPress: () => {
-            const digits = currency === "JPY" ? 0 : 2;
-            store.set({ currency, decimals: digits });
-            setSetting("currency_code", currency);
-            setSetting("currency_decimals", String(digits));
-          },
-        },
-      ],
-    );
   const reset = () =>
     Alert.alert(
       "Delete all data?",
@@ -101,45 +84,11 @@ export default function Settings() {
       <AppText style={{ fontSize: 28, fontFamily: "Inter_700Bold" }}>
         Settings
       </AppText>
-      <AppText
-        style={{
-          fontSize: 12,
-          color: c.textSecondary,
-          fontFamily: "Inter_600SemiBold",
-        }}
-      >
-        APPEARANCE
-      </AppText>
+      <AppText variant="eyebrow" style={{ color: c.textSecondary }}>Appearance</AppText>
       <Card style={{ gap: 16 }}>
         <Row>
           <AppText>Theme</AppText>
-          <View style={{ flexDirection: "row", gap: 7 }}>
-            {(["system", "light", "dark"] as const).map((mode) => (
-              <Pressable
-                key={mode}
-                onPress={() => {
-                  store.set({ themeMode: mode });
-                  setSetting("theme_mode", mode);
-                }}
-                style={{
-                  padding: 8,
-                  borderRadius: 14,
-                  backgroundColor:
-                    store.themeMode === mode ? c.primarySoft : c.surfaceMuted,
-                }}
-              >
-                <AppText
-                  style={{
-                    fontSize: 12,
-                    color:
-                      store.themeMode === mode ? c.primary : c.textSecondary,
-                  }}
-                >
-                  {mode}
-                </AppText>
-              </Pressable>
-            ))}
-          </View>
+          <View style={{ width: "72%" }}><SegmentedControl value={store.themeMode} options={[{ value: "system", label: "System" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} accessibilityLabel="Color theme" onChange={(mode) => { store.set({ themeMode: mode }); setSetting("theme_mode", mode); }} /></View>
         </Row>
         <Row>
           <AppText>Hide balances</AppText>
@@ -173,15 +122,7 @@ export default function Settings() {
           />
         </Row>
       </Card>
-      <AppText
-        style={{
-          fontSize: 12,
-          color: c.textSecondary,
-          fontFamily: "Inter_600SemiBold",
-        }}
-      >
-        CURRENCY
-      </AppText>
+      <AppText variant="eyebrow" style={{ color: c.textSecondary }}>Currency</AppText>
       <Card style={{ gap: 12 }}>
         <Row>
           <AppText>Currency code</AppText>
@@ -189,24 +130,7 @@ export default function Settings() {
             {settings.data?.currency_code ?? "USD"}
           </AppText>
         </Row>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {["USD", "EUR", "GBP", "TND", "CAD", "JPY"].map((currency) => (
-            <Pressable
-              key={currency}
-              onPress={() => chooseCurrency(currency)}
-              style={{
-                padding: 9,
-                borderRadius: 18,
-                backgroundColor:
-                  settings.data?.currency_code === currency
-                    ? c.primarySoft
-                    : c.surfaceMuted,
-              }}
-            >
-              <AppText>{currency}</AppText>
-            </Pressable>
-          ))}
-        </View>
+        <Pressable accessibilityRole="button" onPress={() => router.push("/settings/currency" as never)}><Row><AppText style={{ color: c.primary }}>Choose currency</AppText><Ionicons name="chevron-forward" size={18} color={c.primary} /></Row></Pressable>
       </Card>
       <AppText
         style={{

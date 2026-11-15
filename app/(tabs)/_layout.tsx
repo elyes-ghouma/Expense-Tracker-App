@@ -1,8 +1,7 @@
 import React from "react";
 import { Tabs, useRouter } from "expo-router";
-import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useColors } from "@/components/ui";
+import { MotionPressable, useColors } from "@/components/ui";
 export default function TabLayout() {
   const c = useColors();
   const router = useRouter();
@@ -45,10 +44,11 @@ export default function TabLayout() {
         options={{
           title: "",
           tabBarButton: () => (
-            <Pressable
+            <MotionPressable
               accessibilityRole="button"
               accessibilityLabel="Add transaction"
               onPress={() => router.push("/transaction/new")}
+              haptic
               style={{
                 width: 54,
                 height: 54,
@@ -60,7 +60,7 @@ export default function TabLayout() {
               }}
             >
               <Ionicons name="add" color="#fff" size={30} />
-            </Pressable>
+            </MotionPressable>
           ),
         }}
       />

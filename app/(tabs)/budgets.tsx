@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useRouter } from "expo-router";
 import { format } from "date-fns";
-import { ActionButton, AppText, Card, useColors } from "@/components/ui";
+import { ActionButton, AppText, Card, ProgressBar, SegmentedControl, useColors } from "@/components/ui";
 import { Screen, Row } from "@/components/screens";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { useBudgets, useSettings } from "@/hooks/useAppData";
 import { addMonths, monthKey } from "@/utils/dates";
 import { formatMoney } from "@/utils/money";
+import { budgetService } from "@/services/domain/budgetService";
 
 export default function Budgets() {
   const c = useColors();
@@ -68,30 +69,7 @@ export default function Budgets() {
           </Pressable>
         </Row>
       </Row>
-      <View
-        style={{
-          flexDirection: "row",
-          padding: 4,
-          borderRadius: 24,
-          backgroundColor: c.surfaceMuted,
-        }}
-      >
-        {(["budgets", "analytics"] as const).map((item) => (
-          <Pressable
-            key={item}
-            onPress={() => setView(item)}
-            style={{
-              flex: 1,
-              padding: 11,
-              alignItems: "center",
-              borderRadius: 20,
-              backgroundColor: view === item ? c.surface : "transparent",
-            }}
-          >
-            <AppText>{item === "budgets" ? "Budgets" : "Analytics"}</AppText>
-          </Pressable>
-        ))}
-      </View>
+      <SegmentedControl value={view} onChange={setView} options={[{ value: "budgets", label: "Budgets" }, { value: "analytics", label: "Analytics" }]} accessibilityLabel="Plan view" />
       {view === "analytics" ? (
         <AnalyticsPanel month={month} />
       ) : (
@@ -101,6 +79,12 @@ export default function Budgets() {
           </AppText>
           {overall ? (
             <Pressable onPress={() => editBudget(null, overall.id)}>
+              {(() => {
+                const alertMinor = budgetService.alertThresholdMinor(overall);
+                const exceeded = overall.spentMinor >= overall.amountMinor;
+                const reached = overall.spentMinor >= alertMinor;
+                const alertColor = exceeded ? c.expense : reached ? c.warning : c.primary;
+                return (
               <Card style={{ gap: 12 }}>
                 <Row>
                   <AppText
@@ -108,48 +92,21 @@ export default function Budgets() {
                   >
                     Overall
                   </AppText>
-                  <AppText
-                    style={{
-                      color:
-                        overall.spentMinor > overall.amountMinor
-                          ? c.expense
-                          : c.primary,
-                    }}
-                  >
-                    {Math.round(
-                      (overall.spentMinor / overall.amountMinor) * 100,
-                    )}
-                    %
-                  </AppText>
+                  <AppText style={{ color: alertColor }}>{exceeded ? "Over limit" : reached ? "Alert reached" : `${Math.round((overall.spentMinor / overall.amountMinor) * 100)}% used`}</AppText>
                 </Row>
                 <AppText>
                   Spent {money(overall.spentMinor)} of{" "}
                   {money(overall.amountMinor)}
                 </AppText>
-                <View
-                  style={{
-                    height: 10,
-                    borderRadius: 10,
-                    backgroundColor: c.surfaceMuted,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: `${Math.min(100, (overall.spentMinor / overall.amountMinor) * 100)}%`,
-                      height: 10,
-                      borderRadius: 10,
-                      backgroundColor:
-                        overall.spentMinor > overall.amountMinor
-                          ? c.expense
-                          : c.primary,
-                    }}
-                  />
-                </View>
+                <ProgressBar progress={(overall.spentMinor / overall.amountMinor) * 100} color={alertColor} />
                 <AppText style={{ color: c.textSecondary }}>
                   {money(Math.max(0, overall.amountMinor - overall.spentMinor))}{" "}
                   remaining
                 </AppText>
+                <AppText variant="footnote" style={{ color: reached ? alertColor : c.textTertiary }}>Alert at {money(alertMinor)}</AppText>
               </Card>
+                );
+              })()}
             </Pressable>
           ) : (
             <Card style={{ gap: 10 }}>
@@ -182,8 +139,7 @@ export default function Budgets() {
                       color:
                         b.spentMinor / b.amountMinor >= 1
                           ? c.expense
-                          : b.spentMinor / b.amountMinor >=
-                              b.alertThresholdPct / 100
+                          : b.spentMinor >= budgetService.alertThresholdMinor(b)
                             ? c.warning
                             : c.primary,
                     }}
@@ -209,8 +165,7 @@ export default function Budgets() {
                       backgroundColor:
                         b.spentMinor / b.amountMinor > 1
                           ? c.expense
-                          : b.spentMinor / b.amountMinor >=
-                              b.alertThresholdPct / 100
+                          : b.spentMinor >= budgetService.alertThresholdMinor(b)
                             ? c.warning
                             : c.primary,
                     }}

@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColors } from "./ui";
+import { spacing } from "@/theme";
 export function Screen({
   children,
   contentContainerStyle,
@@ -51,5 +52,5 @@ export function Row({
   );
 }
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 36, gap: 20 },
+  content: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.lg },
 });

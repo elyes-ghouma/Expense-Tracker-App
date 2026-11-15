@@ -9,12 +9,34 @@
     "newArchEnabled": true,
     "plugins": [
       "expo-router",
-      ["expo-sqlite", { "enableFTS": true }],
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true
+        }
+      ],
       "expo-localization",
       "expo-notifications"
     ],
-    "experiments": { "typedRoutes": true },
-    "ios": { "supportsTablet": true, "buildNumber": "2" },
-    "android": { "adaptiveIcon": { "backgroundColor": "#5B5FEF" }, "versionCode": 2 }
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "buildNumber": "2"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#5B5FEF"
+      },
+      "package": "com.elyesghouma.pocketwiseexpensetracker",
+      "versionCode": 2
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "617a3522-2b69-40da-9812-fe1c4217ad7e"
+      }
+    }
   }
 }

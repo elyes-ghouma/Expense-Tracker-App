@@ -18,6 +18,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useSettings } from "@/hooks/useAppData";
 import { useAppStore } from "@/store/appStore";
 import type { Db } from "@/types/domain";
+import { useColors } from "@/components/ui";
 const client = new QueryClient({
   defaultOptions: {
     queries: { staleTime: Infinity, gcTime: 300_000, retry: 1 },
@@ -25,6 +26,7 @@ const client = new QueryClient({
 });
 void SplashScreen.preventAutoHideAsync();
 function AppStack() {
+  const colors = useColors();
   const settings = useSettings();
   const set = useAppStore((s) => s.set);
   React.useEffect(() => {
@@ -45,7 +47,7 @@ function AppStack() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: "#F6F7FB" },
+          contentStyle: { backgroundColor: colors.background },
         }}
       >
         <Stack.Screen name="onboarding" />
@@ -64,6 +66,10 @@ function AppStack() {
         />
         <Stack.Screen
           name="budget/edit"
+          options={{ presentation: "formSheet", headerShown: false }}
+        />
+        <Stack.Screen
+          name="settings/currency"
           options={{ presentation: "formSheet", headerShown: false }}
         />
       </Stack>

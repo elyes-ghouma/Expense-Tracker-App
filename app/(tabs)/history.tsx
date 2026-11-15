@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { Screen, Row } from "@/components/screens";
-import { ActionButton, AppText, Card, useColors } from "@/components/ui";
+import { ActionButton, AppText, Card, CategoryBadge, MoneyText, SegmentedControl, useColors } from "@/components/ui";
 import {
   useCategories,
   useSettings,
@@ -79,53 +78,9 @@ export default function History() {
           color: c.textPrimary,
         }}
       />
+      <SegmentedControl value={type} onChange={setType} accessibilityLabel="Transaction type" options={[{ value: "all", label: "All" }, { value: "expense", label: "Expenses" }, { value: "income", label: "Income" }]} />
       <View style={{ flexDirection: "row", gap: 8 }}>
-        {(["all", "expense", "income"] as const).map((item) => (
-          <Pressable
-            key={item}
-            onPress={() => setType(item)}
-            style={{
-              paddingVertical: 9,
-              paddingHorizontal: 14,
-              borderRadius: 20,
-              backgroundColor: type === item ? c.primarySoft : c.surface,
-            }}
-          >
-            <AppText
-              style={{ color: type === item ? c.primary : c.textSecondary }}
-            >
-              {item === "all"
-                ? "All"
-                : item === "expense"
-                  ? "Expenses"
-                  : "Income"}
-            </AppText>
-          </Pressable>
-        ))}
-      </View>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        {(["month", "30days", "all"] as const).map((item) => (
-          <Pressable
-            key={item}
-            onPress={() => setPeriod(item)}
-            style={{
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 18,
-              backgroundColor: period === item ? c.primarySoft : c.surface,
-            }}
-          >
-            <AppText
-              style={{ color: period === item ? c.primary : c.textSecondary }}
-            >
-              {item === "month"
-                ? "This month"
-                : item === "30days"
-                  ? "Last 30 days"
-                  : "All time"}
-            </AppText>
-          </Pressable>
-        ))}
+        <View style={{ flex: 1 }}><SegmentedControl value={period} onChange={setPeriod} accessibilityLabel="Transaction period" options={[{ value: "month", label: "Month" }, { value: "30days", label: "30 days" }, { value: "all", label: "All time" }]} /></View>
         {(selected || search || type !== "all" || period !== "month") && (
           <Pressable
             onPress={() => {
@@ -197,22 +152,7 @@ export default function History() {
         >
           <Card style={{ padding: 14 }}>
             <Row style={{ gap: 12 }}>
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 14,
-                  backgroundColor: `${tx.categoryColor}22`,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons
-                  name={tx.categoryIcon as never}
-                  size={20}
-                  color={tx.categoryColor}
-                />
-              </View>
+              <CategoryBadge icon={tx.categoryIcon} color={tx.categoryColor} />
               <View style={{ flex: 1 }}>
                 <AppText style={{ fontFamily: "Inter_600SemiBold" }}>
                   {tx.categoryName}
@@ -221,7 +161,7 @@ export default function History() {
                   {tx.note || tx.date}
                 </AppText>
               </View>
-              <AppText
+              <MoneyText
                 style={{
                   fontFamily: "Inter_600SemiBold",
                   color: tx.type === "income" ? c.income : c.textPrimary,
@@ -229,7 +169,7 @@ export default function History() {
               >
                 {tx.type === "income" ? "+" : "−"}
                 {money(tx.amountMinor)}
-              </AppText>
+              </MoneyText>
             </Row>
           </Card>
         </Pressable>
