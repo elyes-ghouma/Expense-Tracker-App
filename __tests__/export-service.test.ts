@@ -2,7 +2,11 @@ import { migrateDbIfNeeded } from "@/services/database/client";
 import { categoryRepo } from "@/services/database/repositories/categoryRepo";
 import { transactionRepo } from "@/services/database/repositories/transactionRepo";
 import { TestDb } from "./sqliteAdapter";
-import { exportService, quoteCsv } from "@/services/domain/exportService";
+import {
+  exportService,
+  neutralizeFormula,
+  quoteCsv,
+} from "@/services/domain/exportService";
 
 jest.mock("expo-file-system/legacy", () => ({
   cacheDirectory: "file:///cache/",
@@ -73,6 +77,32 @@ describe("export service", () => {
     expect(mockShare).toHaveBeenCalledWith(uri);
   });
 
+  it("neutralizes spreadsheet formulas in exported text", async () => {
+    expect(neutralizeFormula("=SUM(A1:A9)")).toBe("'=SUM(A1:A9)");
+    expect(neutralizeFormula("+1")).toBe("'+1");
+    expect(neutralizeFormula("-1")).toBe("'-1");
+    expect(neutralizeFormula("@cmd")).toBe("'@cmd");
+    expect(neutralizeFormula("lunch = good")).toBe("lunch = good");
+    const category = await categoryRepo.insert(db, {
+      name: "Treats",
+      type: "expense",
+      icon: "restaurant",
+      color: "#123ABC",
+    });
+    await transactionRepo.insert(db, {
+      type: "expense",
+      amountMinor: 500,
+      categoryId: category!.id,
+      date: "2026-11-14",
+      note: '=HYPERLINK("http://example.test")',
+    });
+    const uri = await exportService.exportCsv(db);
+    expect(mockWrite).toHaveBeenCalledWith(
+      uri,
+      expect.stringContaining(`"'=HYPERLINK(""http://example.test"")"`),
+    );
+  });
+
   it("creates a consistent database backup and shares it", async () => {
     const copyDb = {
       databasePath: "file:///sqlite/backup.db",
@@ -80,9 +110,11 @@ describe("export service", () => {
     };
     mockOpen.mockResolvedValue(copyDb);
     const uri = await exportService.backupDatabase(db as never);
-    expect(mockBackup).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceDatabase: db, destDatabase: copyDb }),
-    );
+    // Exactly these two options: the schema names must stay at "main".
+    expect(mockBackup).toHaveBeenCalledWith({
+      sourceDatabase: db,
+      destDatabase: copyDb,
+    });
     expect(mockCopy).toHaveBeenCalledWith({
       from: copyDb.databasePath,
       to: uri,

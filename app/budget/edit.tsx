@@ -1,22 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Pressable, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite";
-import { useQueryClient } from "@tanstack/react-query";
 import { Screen, Row } from "@/components/screens";
 import { ActionButton, AppText, SegmentedControl, useColors } from "@/components/ui";
 import * as Haptics from "expo-haptics";
 import {
   useBudgets,
+  useCopyBudgets,
   useCategories,
   useRemoveBudget,
   useSetBudget,
   useSettings,
 } from "@/hooks/useAppData";
 import { formatMoney, parseToMinor } from "@/utils/money";
-import { addMonths } from "@/utils/dates";
-import type { Db } from "@/types/domain";
-import { budgetRepo } from "@/services/database/repositories/budgetRepo";
+import { addMonths, monthKey } from "@/utils/dates";
 
 export default function BudgetEditor() {
   const c = useColors();
@@ -26,13 +23,11 @@ export default function BudgetEditor() {
     categoryId?: string;
     budgetId?: string;
   }>();
-  const month = params.month ?? new Date().toISOString().slice(0, 7);
+  const month = params.month ?? monthKey(new Date());
   const editing = Boolean(params.budgetId);
   const categories = useCategories("expense");
   const budgets = useBudgets(month);
   const settings = useSettings();
-  const db = useSQLiteContext() as unknown as Db;
-  const queryClient = useQueryClient();
   const decimals = Number(settings.data?.currency_decimals ?? 2);
   const currency = settings.data?.currency_code ?? "USD";
   const [categoryId, setCategoryId] = useState<number | null>(
@@ -47,6 +42,7 @@ export default function BudgetEditor() {
   const [alertValue, setAlertValue] = useState("80");
   const save = useSetBudget();
   const remove = useRemoveBudget();
+  const copy = useCopyBudgets();
   const current = budgets.data?.find(
     (budget) => budget.id === Number(params.budgetId),
   );
@@ -297,12 +293,14 @@ export default function BudgetEditor() {
                 { text: "Cancel" },
                 {
                   text: "Copy",
-                  onPress: async () => {
-                    await budgetRepo.copyMonth(db, addMonths(month, -1), month);
-                    await queryClient.invalidateQueries({
-                      queryKey: ["budgets", month],
-                    });
-                  },
+                  onPress: () =>
+                    copy.mutate(
+                      { from: addMonths(month, -1), to: month },
+                      {
+                        onError: (error) =>
+                          Alert.alert("Could not copy budgets", error.message),
+                      },
+                    ),
                 },
               ],
             )

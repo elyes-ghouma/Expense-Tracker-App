@@ -19,6 +19,7 @@ import {
 } from "@/services/domain/transactionService";
 import { analyticsService } from "@/services/domain/analyticsService";
 import { budgetService } from "@/services/domain/budgetService";
+import { currencyService } from "@/services/domain/currencyService";
 const useDb = () => useSQLiteContext() as unknown as Db;
 export function useSettings() {
   const db = useDb();
@@ -102,12 +103,13 @@ export function useTransactionMutations() {
   const invalidate = () => qc.invalidateQueries();
   return {
     create: useMutation({
-      mutationFn: (x: TransactionInput) => transactionService.create(db, x),
+      mutationFn: (x: TransactionInput) =>
+        transactionService.saveWithAlerts(db, x),
       onSuccess: invalidate,
     }),
     update: useMutation({
       mutationFn: (x: { id: number; input: TransactionInput }) =>
-        transactionService.update(db, x.id, x.input),
+        transactionService.saveWithAlerts(db, x.input, x.id),
       onSuccess: invalidate,
     }),
     remove: useMutation({
@@ -143,6 +145,27 @@ export function useRemoveBudget() {
     onSuccess: () => qc.invalidateQueries(),
   });
 }
+export function useCopyBudgets() {
+  const db = useDb();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (x: { from: string; to: string }) =>
+      budgetService.copyMonth(db, x.from, x.to),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+export function useChangeCurrency() {
+  const db = useDb();
+  const qc = useQueryClient();
+  const change = useMutation({
+    mutationFn: (code: string) => currencyService.change(db, code),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+  return {
+    change,
+    willRound: (code: string) => currencyService.willRound(db, code),
+  };
+}
 export function useSetSetting() {
   const db = useDb();
   const qc = useQueryClient();
@@ -162,7 +185,9 @@ export function useCategoryCreate() {
       icon: string;
       color: string;
     }) => categoryService.create(db, x),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    // Category names, icons and colors are embedded in transaction, budget
+    // and dashboard queries, so refresh everything.
+    onSuccess: () => qc.invalidateQueries(),
   });
 }
 export function useCategoryUpdate() {
@@ -173,7 +198,9 @@ export function useCategoryUpdate() {
       id: number;
       input: Partial<{ name: string; icon: string; color: string }>;
     }) => categoryService.update(db, x.id, x.input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    // Category names, icons and colors are embedded in transaction, budget
+    // and dashboard queries, so refresh everything.
+    onSuccess: () => qc.invalidateQueries(),
   });
 }
 export function useCategoryArchive() {
@@ -181,7 +208,9 @@ export function useCategoryArchive() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => categoryService.archiveOrDelete(db, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    // Category names, icons and colors are embedded in transaction, budget
+    // and dashboard queries, so refresh everything.
+    onSuccess: () => qc.invalidateQueries(),
   });
 }
 export { budgetRepo, transactionRepo };

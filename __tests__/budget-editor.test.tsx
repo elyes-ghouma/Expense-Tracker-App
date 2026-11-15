@@ -12,6 +12,7 @@ jest.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ invalidateQ
 jest.mock("@/hooks/useAppData", () => ({
   useBudgets: () => ({ data: [] }),
   useCategories: () => ({ data: [] }),
+  useCopyBudgets: () => ({ mutate: jest.fn() }),
   useRemoveBudget: () => ({ mutateAsync: jest.fn() }),
   useSetBudget: () => ({ mutateAsync: mockSave, isPending: false }),
   useSettings: () => ({ data: { currency_code: "USD", currency_decimals: "2" } }),

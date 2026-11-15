@@ -1,4 +1,4 @@
-import type { Db } from "@/types/domain";
+import type { BudgetAlert, BudgetProgress, Db } from "@/types/domain";
 import { budgetRepo } from "@/services/database/repositories/budgetRepo";
 export const budgetService = {
   ensureMonth: async (db: Db, month: string) =>
@@ -30,6 +30,30 @@ export const budgetService = {
     return budgetRepo.upsert(db, { ...b, alertThresholdPct, alertThresholdMode: mode, alertThresholdValue: value });
   },
   removeBudget: budgetRepo.remove,
+  copyMonth: (db: Db, from: string, to: string) =>
+    budgetRepo.copyMonth(db, from, to),
+  /** Budgets whose alert threshold or limit was crossed between two snapshots. */
+  alertsBetween: (
+    before: BudgetProgress[],
+    after: BudgetProgress[],
+  ): BudgetAlert[] => {
+    const priorSpent = new Map(before.map((b) => [b.id, b.spentMinor]));
+    return after.flatMap((b): BudgetAlert[] => {
+      const crossed = budgetService.crossedThresholds(
+        priorSpent.get(b.id) ?? 0,
+        b.spentMinor,
+        b,
+      );
+      if (!crossed.limit && !crossed.threshold) return [];
+      return [
+        {
+          budgetId: b.id,
+          name: b.categoryName ?? "Overall",
+          kind: crossed.limit ? "limit" : "threshold",
+        },
+      ];
+    });
+  },
   alertThresholdMinor: (budget: { amountMinor: number; alertThresholdMode?: "percent" | "cash"; alertThresholdValue?: number; alertThresholdPct: number }) =>
     budget.alertThresholdMode === "cash"
       ? budget.alertThresholdValue ?? 0

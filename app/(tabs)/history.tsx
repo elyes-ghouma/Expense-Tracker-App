@@ -16,7 +16,11 @@ import { monthKey, monthRange, toDayKey } from "@/utils/dates";
 export default function History() {
   const c = useColors();
   const router = useRouter();
-  const params = useLocalSearchParams<{ categoryId?: string; type?: string }>();
+  const params = useLocalSearchParams<{
+    categoryId?: string;
+    type?: string;
+    at?: string;
+  }>();
   const settings = useSettings();
   const currency = settings.data?.currency_code ?? "USD";
   const decimals = Number(settings.data?.currency_decimals ?? 2);
@@ -29,6 +33,13 @@ export default function History() {
     params.categoryId ? Number(params.categoryId) : undefined,
   );
   const [period, setPeriod] = useState<"month" | "30days" | "all">("month");
+  // The tab stays mounted, so apply filters again whenever the dashboard
+  // links here with new params (`at` changes on every tap).
+  useEffect(() => {
+    if (params.type === "expense" || params.type === "income")
+      setType(params.type);
+    if (params.categoryId) setSelected(Number(params.categoryId));
+  }, [params.categoryId, params.type, params.at]);
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 250);
     return () => clearTimeout(timer);

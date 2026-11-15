@@ -205,6 +205,19 @@ export const transactionRepo = {
     );
     return r?.total ?? 0;
   },
+  /** Keeps displayed values the same when the currency's decimal places change. */
+  async rescaleAmounts(db: Db, fromDecimals: number, toDecimals: number) {
+    const factor = 10 ** Math.abs(toDecimals - fromDecimals);
+    if (toDecimals > fromDecimals)
+      await db.runAsync("UPDATE transactions SET amount_minor=amount_minor*?", [
+        factor,
+      ]);
+    else if (toDecimals < fromDecimals)
+      await db.runAsync(
+        "UPDATE transactions SET amount_minor=MAX(1,CAST(ROUND(amount_minor*1.0/?) AS INTEGER))",
+        [factor],
+      );
+  },
   async recent(db: Db, n: number) {
     return (await this.list(db, {}, undefined, n)).items;
   },

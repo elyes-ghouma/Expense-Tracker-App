@@ -24,13 +24,28 @@ export function formatMoney(
   },
 ): string {
   const value = minor / 10 ** o.decimals;
-  return new Intl.NumberFormat(o.locale, {
-    style: "currency",
-    currency: o.currency,
-    minimumFractionDigits: o.decimals,
-    maximumFractionDigits: o.decimals,
-    signDisplay: o.signDisplay ?? "auto",
-  }).format(value);
+  try {
+    return new Intl.NumberFormat(o.locale, {
+      style: "currency",
+      currency: o.currency,
+      minimumFractionDigits: o.decimals,
+      maximumFractionDigits: o.decimals,
+      signDisplay: o.signDisplay ?? "auto",
+    }).format(value);
+  } catch {
+    // A corrupt currency code or decimals setting must not crash rendering.
+    const digits = Number.isInteger(o.decimals) ? o.decimals : 2;
+    return `${value.toFixed(Math.min(3, Math.max(0, digits)))} ${o.currency}`.trim();
+  }
+}
+export function isValidCurrencyCode(code: string): boolean {
+  if (!/^[A-Za-z]{3}$/.test(code)) return false;
+  try {
+    new Intl.NumberFormat("en", { style: "currency", currency: code });
+    return true;
+  } catch {
+    return false;
+  }
 }
 export function splitMinor(
   minor: number,

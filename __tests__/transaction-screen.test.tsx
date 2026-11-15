@@ -1,4 +1,5 @@
 import React from "react";
+import { Alert } from "react-native";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import TransactionScreen from "../app/transaction/new";
 
@@ -69,6 +70,38 @@ describe("transaction entry flow", () => {
       ),
     );
     expect(mockBack).toHaveBeenCalled();
+  }, 15000);
+  it("accepts cents on the keypad and ignores extra decimals", async () => {
+    const view = render(<TransactionScreen />);
+    for (const key of [".", ".", "2", "5", "9", "."])
+      fireEvent.press(view.getByRole("button", { name: key }));
+    expect(view.getByLabelText("Amount 0.25 USD")).toBeTruthy();
+    fireEvent.press(view.getByRole("button", { name: "Groceries" }));
+    fireEvent.press(view.getByRole("button", { name: "Add expense" }));
+    await waitFor(() =>
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ amountMinor: 25 }),
+      ),
+    );
+  }, 15000);
+  it("shows a budget alert when saving crosses a budget", async () => {
+    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockCreate.mockResolvedValue({
+      transaction: { id: 1 },
+      alerts: [{ budgetId: 7, name: "Overall", kind: "limit" }],
+    });
+    const view = render(<TransactionScreen />);
+    fireEvent.press(view.getByRole("button", { name: "9" }));
+    fireEvent.press(view.getByRole("button", { name: "Groceries" }));
+    fireEvent.press(view.getByRole("button", { name: "Add expense" }));
+    await waitFor(() =>
+      expect(alert).toHaveBeenCalledWith(
+        "Budget alert",
+        "Overall budget: you have reached the limit.",
+      ),
+    );
+    expect(mockBack).toHaveBeenCalled();
+    alert.mockRestore();
   }, 15000);
   it("switches to income and uses the matching category list", async () => {
     const view = render(<TransactionScreen />);

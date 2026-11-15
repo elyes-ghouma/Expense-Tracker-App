@@ -153,6 +153,7 @@ export default function Dashboard() {
                     params: {
                       categoryId: String(item.category_id),
                       type: breakdownType,
+                      at: String(Date.now()),
                     },
                   })
                 }

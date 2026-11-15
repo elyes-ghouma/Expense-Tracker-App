@@ -8,6 +8,10 @@ import { seedDatabase } from "@/services/database/seed";
 import * as SQLite from "expo-sqlite";
 import * as DocumentPicker from "expo-document-picker";
 export const quoteCsv = (v: string) => `"${v.replace(/"/g, '""')}"`;
+// Spreadsheet apps run cells starting with these characters as formulas.
+// A leading apostrophe makes them plain text.
+export const neutralizeFormula = (v: string) =>
+  /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
 export const exportService = {
   async exportCsv(db: Db, filter?: TransactionFilter) {
     const settings = await settingsRepo.getAll(db);
@@ -21,9 +25,9 @@ export const exportService = {
           [
             t.date,
             t.type,
-            t.categoryName,
+            neutralizeFormula(t.categoryName),
             (t.amountMinor / 10 ** decimals).toFixed(decimals),
-            t.note ?? "",
+            neutralizeFormula(t.note ?? ""),
           ]
             .map(quoteCsv)
             .join(","),
@@ -42,11 +46,11 @@ export const exportService = {
     const name = `expense-tracker-backup-${format(new Date(), "yyyyMMdd-HHmmss")}.db`;
     const copy = await SQLite.openDatabaseAsync(name);
     try {
+      // The *DatabaseName options are SQLite schema names (default "main"),
+      // not file names, so they are left at their defaults.
       await SQLite.backupDatabaseAsync({
         sourceDatabase: db,
         destDatabase: copy,
-        sourceDatabaseName: "expense-tracker.db",
-        destDatabaseName: name,
       });
       const path = copy.databasePath;
       if (!path) throw new Error("Database file path is unavailable");

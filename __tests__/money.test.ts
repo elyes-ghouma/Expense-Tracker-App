@@ -1,6 +1,7 @@
 import {
   currencyDecimals,
   formatMoney,
+  isValidCurrencyCode,
   parseToMinor,
   splitMinor,
 } from "@/utils/money";
@@ -31,5 +32,20 @@ describe("money utilities", () => {
     expect(currencyDecimals("JPY")).toBe(0);
     expect(currencyDecimals("BHD")).toBe(3);
     expect(currencyDecimals("USD")).toBe(2);
+  });
+  it("accepts only well-formed three letter currency codes", () => {
+    expect(isValidCurrencyCode("USD")).toBe(true);
+    expect(isValidCurrencyCode("tnd")).toBe(true);
+    expect(isValidCurrencyCode("US")).toBe(false);
+    expect(isValidCurrencyCode("U$D")).toBe(false);
+    expect(isValidCurrencyCode("")).toBe(false);
+  });
+  it("falls back to a plain amount instead of throwing on a corrupt currency", () => {
+    expect(formatMoney(1234, { currency: "US", locale: "en", decimals: 2 })).toBe(
+      "12.34 US",
+    );
+    expect(formatMoney(1234, { currency: "", locale: "en", decimals: 2 })).toBe(
+      "12.34",
+    );
   });
 });

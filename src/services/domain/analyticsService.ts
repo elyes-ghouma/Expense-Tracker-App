@@ -2,7 +2,7 @@ import type { Db } from "@/types/domain";
 import { transactionRepo } from "@/services/database/repositories/transactionRepo";
 import { analyticsRepo } from "@/services/database/repositories/analyticsRepo";
 import { budgetRepo } from "@/services/database/repositories/budgetRepo";
-import { monthRange, addMonths } from "@/utils/dates";
+import { monthRange, addMonths, monthKey } from "@/utils/dates";
 export const analyticsService = {
   async dashboard(db: Db, month: string) {
     const [from, to] = monthRange(month);
@@ -43,8 +43,16 @@ export const analyticsService = {
       delta: current.expenseMinor - prior.expenseMinor,
     };
   },
-  async insights(db: Db, month: string) {
+  async insights(db: Db, month: string, today = new Date()) {
     const [from, to] = monthRange(month);
+    // Average over the days elapsed so far in the current month, or over the
+    // whole month for past months.
+    const daysInMonth = Math.round(
+      (new Date(`${to}T12:00:00`).getTime() -
+        new Date(`${from}T12:00:00`).getTime()) /
+        86_400_000,
+    );
+    const days = month === monthKey(today) ? today.getDate() : daysInMonth;
     const [daily, top] = await Promise.all([
       analyticsRepo.dailySpend(db, from, to),
       analyticsRepo.topSpendDay(db, from, to),
@@ -53,10 +61,7 @@ export const analyticsService = {
       daily,
       topSpendDay: top,
       averageDailySpend: daily.length
-        ? Math.round(
-            daily.reduce((s, d) => s + d.total, 0) /
-              new Date(`${to}T12:00:00`).getDate(),
-          )
+        ? Math.round(daily.reduce((s, d) => s + d.total, 0) / days)
         : 0,
     };
   },

@@ -64,12 +64,10 @@ export default function TransactionScreen() {
       setAmount("");
       return;
     }
-    const next = amount + key;
-    if (
-      next.length > 13 ||
-      (/^\d+\.\d+$/.test(next) && next.split(".")[1].length >= decimals)
-    )
-      return;
+    if (key === "." && (!decimals || amount.includes("."))) return;
+    const next = (key === "." && !amount ? "0" : amount) + key;
+    const fraction = next.split(".")[1] ?? "";
+    if (next.length > 13 || fraction.length > decimals) return;
     setAmount(next);
   };
   const save = async () => {
@@ -77,14 +75,27 @@ export default function TransactionScreen() {
       if (!categoryId) throw new Error("Choose a category");
       const amountMinor = parseToMinor(cleanAmount, decimals);
       const input = { type, amountMinor, categoryId, note, date };
-      if (id) await mutations.update.mutateAsync({ id: Number(id), input });
-      else await mutations.create.mutateAsync(input);
+      const saved = id
+        ? await mutations.update.mutateAsync({ id: Number(id), input })
+        : await mutations.create.mutateAsync(input);
       if (settings.data?.haptics_enabled !== "0") {
         await Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
         );
       }
       router.back();
+      const alerts = saved?.alerts ?? [];
+      if (alerts.length)
+        Alert.alert(
+          "Budget alert",
+          alerts
+            .map((a) =>
+              a.kind === "limit"
+                ? `${a.name} budget: you have reached the limit.`
+                : `${a.name} budget: you have reached your alert threshold.`,
+            )
+            .join("\n"),
+        );
     } catch (e) {
       Alert.alert(
         "Check your transaction",

@@ -46,12 +46,9 @@ jobs:
       - name: Check Expo dependency versions
         run: npx expo install --check
 
-      # Non-blocking for now: expo-doctor reports a missing expo-linking peer
-      # dependency. After `npx expo install expo-linking`, remove
-      # continue-on-error to make this a required check.
+      # Checks app config, native module peers and SDK compatibility.
       - name: Expo Doctor
         run: npx expo-doctor
-        continue-on-error: true
 
       - name: Typecheck
         run: npm run typecheck

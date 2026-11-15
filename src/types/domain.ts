@@ -41,6 +41,12 @@ export interface BudgetProgress extends Budget {
   categoryColor?: string;
   spentMinor: number;
 }
+export interface BudgetAlert {
+  budgetId: number;
+  /** Category name, or "Overall" for the whole-month budget. */
+  name: string;
+  kind: "threshold" | "limit";
+}
 export interface TransactionFilter {
   type?: TxType;
   dateFrom?: DayKey;

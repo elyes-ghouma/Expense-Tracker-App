@@ -58,6 +58,20 @@ export const budgetRepo = {
   async remove(db: Db, id: number) {
     await db.runAsync("DELETE FROM budgets WHERE id=?", [id]);
   },
+  /** Rescales limits and cash alert amounts; percentage alerts are unchanged. */
+  async rescaleAmounts(db: Db, fromDecimals: number, toDecimals: number) {
+    const factor = 10 ** Math.abs(toDecimals - fromDecimals);
+    if (toDecimals > fromDecimals)
+      await db.runAsync(
+        "UPDATE budgets SET amount_minor=amount_minor*?,alert_threshold_value=CASE WHEN alert_threshold_mode='cash' THEN alert_threshold_value*? ELSE alert_threshold_value END",
+        [factor, factor],
+      );
+    else if (toDecimals < fromDecimals)
+      await db.runAsync(
+        "UPDATE budgets SET amount_minor=MAX(1,CAST(ROUND(amount_minor*1.0/?) AS INTEGER)),alert_threshold_value=CASE WHEN alert_threshold_mode='cash' THEN MAX(1,CAST(ROUND(alert_threshold_value*1.0/?) AS INTEGER)) ELSE alert_threshold_value END",
+        [factor, factor],
+      );
+  },
   async copyMonth(db: Db, from: string, to: string) {
     await db.withTransactionAsync(async () => {
       await db.runAsync(
