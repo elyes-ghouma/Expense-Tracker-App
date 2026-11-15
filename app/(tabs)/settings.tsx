@@ -21,6 +21,7 @@ export default function Settings() {
   const db = useSQLiteContext() as unknown as Db;
   const store = useAppStore();
   const [opening, setOpening] = useState("0");
+  const [openingSaved, setOpeningSaved] = useState(false);
   const decimals = Number(settings.data?.currency_decimals ?? 2);
   const setSetting = (key: string, value: string) =>
     updateSetting.mutate({ key, value });
@@ -88,7 +89,7 @@ export default function Settings() {
       <Card style={{ gap: 16 }}>
         <Row>
           <AppText>Theme</AppText>
-          <View style={{ width: "72%" }}><SegmentedControl value={store.themeMode} options={[{ value: "system", label: "System" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} accessibilityLabel="Color theme" onChange={(mode) => { store.set({ themeMode: mode }); setSetting("theme_mode", mode); }} /></View>
+          <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}><SegmentedControl value={store.themeMode} options={[{ value: "system", label: "System" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} accessibilityLabel="Color theme" onChange={(mode) => { store.set({ themeMode: mode }); setSetting("theme_mode", mode); }} /></View>
         </Row>
         <Row>
           <AppText>Hide balances</AppText>
@@ -158,14 +159,17 @@ export default function Settings() {
           }}
         />
         <Pressable
+          disabled={updateSetting.isPending}
           accessibilityRole="button"
-          onPress={() => {
+          onPress={async () => {
             try {
               const minor = /^0+(?:[.,]0*)?$/.test(opening.trim())
                 ? 0
                 : parseToMinor(opening, decimals);
               store.set({ openingBalance: minor });
-              setSetting("opening_balance_minor", String(minor));
+              await updateSetting.mutateAsync({ key: "opening_balance_minor", value: String(minor) });
+              setOpeningSaved(true);
+              setTimeout(() => setOpeningSaved(false), 2200);
             } catch (error) {
               Alert.alert(
                 "Invalid balance",
@@ -174,7 +178,7 @@ export default function Settings() {
             }
           }}
         >
-          <AppText style={{ color: c.primary }}>Save opening balance</AppText>
+          <AppText style={{ color: updateSetting.isPending ? c.textTertiary : c.primary }}>{updateSetting.isPending ? "Saving…" : openingSaved ? "Opening balance saved ✓" : "Save opening balance"}</AppText>
         </Pressable>
       </Card>
       <AppText

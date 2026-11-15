@@ -82,7 +82,7 @@ export default function Dashboard() {
           </Pressable>
         </Row>
       </Row>
-      <LinearGradient colors={[c.gradientStart, c.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 22, borderRadius: 24, gap: 15 }}>
+      <LinearGradient colors={[c.gradientStart, c.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ minHeight: 190, padding: 24, borderRadius: 24, gap: 16 }}>
         <Row>
           <AppText style={{ color: "#E8E9FF" }}>Total balance</AppText>
           <Pressable
@@ -100,7 +100,7 @@ export default function Dashboard() {
         <MoneyText
           adjustsFontSizeToFit
           numberOfLines={1}
-          style={{ color: "#fff", fontSize: 38, fontFamily: "Inter_700Bold" }}
+          style={{ color: "#fff", fontSize: 38, lineHeight: 50, paddingVertical: 3, fontFamily: "Inter_700Bold" }}
         >
           {money(
             Number(s.data?.opening_balance_minor ?? 0) +

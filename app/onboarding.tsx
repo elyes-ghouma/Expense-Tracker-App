@@ -13,7 +13,7 @@ export default function Onboarding() {
   return (
     <Screen>
       <View style={{ flex: 1, justifyContent: "center", gap: 22 }}>
-        <AppText style={{ fontSize: 34, fontFamily: "Inter_700Bold" }}>
+        <AppText style={{ fontSize: 34, lineHeight: 44, paddingVertical: 5, fontFamily: "Inter_700Bold" }}>
           Money, made clear.
         </AppText>
         <AppText style={{ color: c.textSecondary }}>
