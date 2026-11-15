@@ -102,3 +102,41 @@ jobs:
       # app.json/plugin errors fail here. No native build or EAS account needed.
       - name: Export JavaScript bundle
         run: npx expo export --platform ${{ matrix.platform }} --output-dir dist
+
+  # ---- CD: build a new APK once every check above has passed ----
+  build-apk:
+    name: Build Android APK (EAS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [quality, bundle]
+    # Only for pushes to main: never for pull requests or manual runs.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    env:
+      # Create at https://expo.dev/settings/access-tokens and save it under
+      # GitHub repo Settings > Secrets and variables > Actions as EXPO_TOKEN.
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Check that the Expo token is configured
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN secret is missing. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js (with npm cache)
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Starts the "preview" profile from eas.json (installable APK) on EAS
+      # servers. EAS bumps versionCode automatically. --no-wait returns as soon
+      # as the build is queued; the build link is printed in this step's log.
+      - name: Start EAS build
+        run: npx --yes eas-cli@latest build --platform android --profile preview --non-interactive --no-wait
