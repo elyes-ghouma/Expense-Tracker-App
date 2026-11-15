@@ -27,7 +27,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#5B5FEF"
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.elyesghouma.pocketwiseexpensetracker",
       "versionCode": 5
@@ -37,6 +38,7 @@
       "eas": {
         "projectId": "617a3522-2b69-40da-9812-fe1c4217ad7e"
       }
-    }
+    },
+    "icon": "./assets/logo.png"
   }
 }
